@@ -1,0 +1,65 @@
+---
+title: "P8131 HW5"
+author: "Brian Jo Hsuan Lee"
+date: "3/15/2022"
+output: pdf_document
+---
+
+Load packages
+```{r, message=F}
+library(tidyverse)
+```
+
+## Problem 1: Crab Satellite Count
+
+Load and tidy data
+```{r, warning=F, message=F}
+# txt file read in using read_delim() and cleaned accordingly
+crab_data = 
+  read_delim("HW5-crab.txt", delim = "\t") %>% 
+  mutate(
+    number = str_trim(number, side = c("both"))
+  ) %>% 
+  separate(number, c("number", "C", "S", "W", "Wt", "Sa"), sep = " +") %>% 
+  mutate(
+    across(where(is.character), as.numeric)
+  )
+```
+
+a) 
+**Fit a simple Poisson model, check the goodness of fit and interpret the model**
+```{r}
+# m1 model fit
+crab_m1 = glm(Sa ~ W, family = poisson, data = crab_data)
+summary(crab_m1)
+
+# both deviance residual and peason's residual goodness of fit tests, 
+# with df = 173 observations - 2 predictors = 171
+crab_m1_deviance = crab_m1$deviance
+crab_m1_deviance_pval = 1 - pchisq(crab_m1_deviance, 171)
+crab_m1_pchisq = sum(residuals(crab_m1, 'pearson')^2)
+crab_m1_pchisq_pval = 1 - pchisq(crab_m1_pchisq, 171)
+
+ifelse(crab_m1_deviance_pval > 0.05 | crab_m1_pchisq_pval > 0.05, 
+       'Failed to reject the null, since no significant evidence suggest the poisson fit is not good',
+       'Reject the null with significant data suggesting the poisson fit is not good')
+```
+
+b) 
+**Fit a Poisson model with 2 predictors, compare it with the previous model and interpret it**
+```{r}
+# m2 model fit
+crab_m2 = glm(Sa ~ W + Wt, family = poisson, data = crab_data)
+summary(crab_m2)
+```
+
+```{r}
+# use chisq test and evaluate the nested models,
+# with df = 171 m1 predictors - 170 m2 predictors = 1
+m1_m2_stat = crab_m1$deviance - crab_m2$deviance
+m1_m2_pval = 1 - pchisq(m1_m2_stat, df = 171-170)
+ifelse(m1_m2_pval > 0.05, 
+       'Failed to reject the null, since no significant evidence suggest the larger model has a better fit',
+       'Reject the null with significant evidence suggesting the larger model fits the data better')
+```
+
