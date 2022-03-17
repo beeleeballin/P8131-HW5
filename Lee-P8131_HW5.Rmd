@@ -12,9 +12,10 @@ library(tidyverse)
 
 ## Problem 1: Crab Satellite Count
 
-Load and tidy data
+Import and tidy data
+
 ```{r, warning=F, message=F}
-# txt file read in using read_delim() and cleaned accordingly
+# txt file read in using read_delim(), separated grouped values, and corrected column types
 crab_data = 
   read_delim("HW5-crab.txt", delim = "\t") %>% 
   mutate(
@@ -28,15 +29,15 @@ crab_data =
 
 a) 
 **Fit a simple Poisson model, check the goodness of fit and interpret the model**
+
 ```{r}
 # m1 model fit
 crab_m1 = glm(Sa ~ W, family = poisson, data = crab_data)
 summary(crab_m1)
 
-# both deviance residual and peason's residual goodness of fit tests, 
+# both deviance residual and pearson's residual goodness of fit tests, 
 # with df = 173 observations - 2 predictors = 171
-crab_m1_deviance = crab_m1$deviance
-crab_m1_deviance_pval = 1 - pchisq(crab_m1_deviance, 171)
+crab_m1_deviance_pval = 1 - pchisq(crab_m1$deviance, 171)
 crab_m1_pchisq = sum(residuals(crab_m1, 'pearson')^2)
 crab_m1_pchisq_pval = 1 - pchisq(crab_m1_pchisq, 171)
 
@@ -45,21 +46,113 @@ ifelse(crab_m1_deviance_pval > 0.05 | crab_m1_pchisq_pval > 0.05,
        'Reject the null with significant data suggesting the poisson fit is not good')
 ```
 
+Fit M1 shows the log count of a female horseshoe crab's satellite increases by 0.164 per unit increase of its carapace width. The coefficient for carapace width is significant at p-value < 2e-16. However, the simple poisson model does not provide a good fit to the data.
+
 b) 
 **Fit a Poisson model with 2 predictors, compare it with the previous model and interpret it**
+
 ```{r}
 # m2 model fit
 crab_m2 = glm(Sa ~ W + Wt, family = poisson, data = crab_data)
 summary(crab_m2)
+
+# m3 model fit, including an additional interaction term
+crab_m3 = glm(Sa ~ W * Wt, family = poisson, data = crab_data)
+summary(crab_m3)
 ```
 
+Fit M2 shows the log count of a female horseshoe crab's satellite increases by 0.0459 per unit increase of its carapace width while adjusting for weight, and increases by 0.447 per unit increase of its weight while adjusting for carapace width. Only the coefficient for weight is significant. On the other hand, fit M3 introduces an interaction term, and all of its 4 coefficients are significant. 
+
+Compare the nested models to decide which fits the data best. Begin with evaluating M2 against M3. 
+
 ```{r}
-# use chisq test and evaluate the nested models,
-# with df = 171 m1 predictors - 170 m2 predictors = 1
-m1_m2_stat = crab_m1$deviance - crab_m2$deviance
-m1_m2_pval = 1 - pchisq(m1_m2_stat, df = 171-170)
-ifelse(m1_m2_pval > 0.05, 
+# use chisq test to run deviance analysis on the nested models m2 and m3,
+# with df = 170 m2 predictors - 169 m3 predictors = 1
+m2_m3_stat = crab_m2$deviance - crab_m3$deviance
+m2_m3_pval = 1 - pchisq(m2_m3_stat, df = 170-169)
+ifelse(m2_m3_pval > 0.05, 
+       'Failed to reject the null since no significant evidence suggest M3 has a better fit',
+       'Reject the null with significant evidence suggesting the M3 model fits the data better')
+```
+
+M3, the model with the interaction term, has a significantly better fit and is preferred to M2. Evaluate M1 against M3. 
+
+```{r}
+# use chisq test and evaluate the nested models m1 and m3,
+# with df = 171 m1 predictors - 169 m3 predictors = 2
+m1_m3_stat = crab_m1$deviance - crab_m3$deviance
+m1_m3_pval = 1 - pchisq(m1_m3_stat, df = 171-169)
+ifelse(m1_m3_pval > 0.05, 
        'Failed to reject the null, since no significant evidence suggest the larger model has a better fit',
        'Reject the null with significant evidence suggesting the larger model fits the data better')
 ```
 
+M3 also has a significantly better fit than the simple model M1. 
+
+c)
+**Estimate overdispersion and fit a Poisson model accounting for it**
+We will move forward with M3 instead of M2, since we deem the model with the interaction term has a better fit. 
+
+```{r}
+# obtain dispersion paramater using m3's pearson's chisq residual
+# with df = 173 observations - 4 predictors = 169
+crab_m3_pchisq = sum(residuals(crab_m3, 'pearson')^2)
+phi = crab_m3_pchisq/169; phi
+# the following code yields a similar phi estimate
+## alt_phi = crab_m3$deviance/crab_m3$df.residual; alt_phi
+
+summary(crab_m3, dispersion = phi)
+```
+Estimated betas don't change
+
+```{r}
+res = residuals(crab_m2, type='pearson')
+plot(qnorm((173+1:173+0.5)/(2*173+1.125)),
+     sort(abs(res)),
+     xlab='Expected Half-Normal Order Stats',
+     ylab='Ordered Abs Pearson Residuals')
+abline(a=0, b=1)
+abline(a=0, b=sqrt(phi), lty=2)
+```
+
+## Problem 2: 
+
+```{r, warning=F, message=F}
+# txt file read in using read_delim() and dropped 'NA' rows and o 'omit' columns
+para_data = 
+  read_delim("HW5-parasite.txt", delim = "\t") %>% 
+  select(c('Intensity', 'Year', 'Length', 'Area')) %>% 
+  mutate(
+    Year = factor(Year),
+    Area = factor(Area)
+  ) %>% 
+  drop_na()
+```
+
+a) 
+**Fit a simple Poisson model, check the goodness of fit and interpret the model**
+
+```{r}
+# m1 model fit
+para_m1 = glm(Intensity ~ Year + Area + Length, family = poisson, data = para_data)
+summary(para_m1)
+```
+
+The fit shows the log count of parasites is 2.64 in year 1999, in area 1 and at length 0. The response increases by 0.670 in 2000, but decreases by 0.218 in 2001 when compared to year 1999 while adjusting for areas and fish body length; the response decreases by 0.212 and 0.117 in area 2 and area 3, respectively, and increases by 1.40 in area 4 when compared to area 1, while adjusting for year and fish body length; the response decreases by 0.0284 per unit increase in length while adjusting for year and area. The intercept and all coefficients are significant at $\alpha = 0.05$.
+
+b) 
+**Goodness of fit and conclusions**
+
+```{r}
+# both deviance residual and pearson's residual goodness of fit tests, 
+# with df = 1191 observations - 4 predictors = 1187
+para_m1_deviance_pval = 1 - pchisq(para_m1$deviance, 1187)
+para_m1_pchisq = sum(residuals(para_m1, 'pearson')^2)
+para_m1_pchisq_pval = 1 - pchisq(para_m1_pchisq, 1187)
+
+ifelse(para_m1_deviance_pval > 0.05 | para_m1_pchisq_pval > 0.05, 
+       'Failed to reject the null, since no significant evidence suggest the poisson fit is not good',
+       'Reject the null with significant data suggesting the poisson fit is not good')
+```
+
+Despite the coefficients are significant, the model does not provide a good fit to the data. We may speculate the issue be that the data actually falls in a zero-inflated, zero-truncated, or multi-modal poisson distribution. 
