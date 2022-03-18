@@ -55,17 +55,14 @@ b)
 # m2 model fit
 crab_m2 = glm(Sa ~ W + Wt, family = poisson, data = crab_data)
 summary(crab_m2)
+```
 
+```{r, eval=F, echo=F}
+# if we wish to consider the interaction term of width and weight, the following model explores that collection of predictors
 # m3 model fit, including an additional interaction term
 crab_m3 = glm(Sa ~ W * Wt, family = poisson, data = crab_data)
 summary(crab_m3)
-```
 
-Fit M2 shows the log count of a female horseshoe crab's satellite increases by 0.0459 per unit increase of its carapace width while adjusting for weight, and increases by 0.447 per unit increase of its weight while adjusting for carapace width. Only the coefficient for weight is significant. On the other hand, fit M3 introduces an interaction term, and all of its 4 coefficients are significant. 
-
-Compare the nested models to decide which fits the data best. Begin with evaluating M2 against M3. 
-
-```{r}
 # use chisq test to run deviance analysis on the nested models m2 and m3,
 # with df = 170 m2 predictors - 169 m3 predictors = 1
 m2_m3_stat = crab_m2$deviance - crab_m3$deviance
@@ -73,35 +70,60 @@ m2_m3_pval = 1 - pchisq(m2_m3_stat, df = 170-169)
 ifelse(m2_m3_pval > 0.05, 
        'Failed to reject the null since no significant evidence suggest M3 has a better fit',
        'Reject the null with significant evidence suggesting the M3 model fits the data better')
+# we learn that the model including the interaction term yields highly significant coefficients and provides a better fit
 ```
 
-M3, the model with the interaction term, has a significantly better fit and is preferred to M2. Evaluate M1 against M3. 
+```{r, eval=F, echo=F}
+# if we wish to evaluate the goodness of fit m2 and m3, see analysis as follows
+# both deviance residual and pearson's residual goodness of fit tests, 
+# with df = 173 observations - 3 predictors = 170
+crab_m2_deviance_pval = 1 - pchisq(crab_m2$deviance, 170)
+crab_m2_pchisq = sum(residuals(crab_m2, 'pearson')^2)
+crab_m2_pchisq_pval = 1 - pchisq(crab_m2_pchisq, 170)
+
+ifelse(crab_m2_deviance_pval > 0.05 | crab_m2_pchisq_pval > 0.05, 
+       'Failed to reject the null, since no significant evidence suggest the poisson fit is not good',
+       'Reject the null with significant data suggesting the poisson fit is not good')
+
+# both deviance residual and pearson's residual goodness of fit tests, 
+# with df = 173 observations - 4 predictors = 169
+crab_m3_deviance_pval = 1 - pchisq(crab_m3$deviance, 169)
+crab_m3_pchisq = sum(residuals(crab_m3, 'pearson')^2)
+crab_m3_pchisq_pval = 1 - pchisq(crab_m3_pchisq, 169)
+
+ifelse(crab_m3_deviance_pval > 0.05 | crab_m3_pchisq_pval > 0.05, 
+       'Failed to reject the null, since no significant evidence suggest the poisson fit is not good',
+       'Reject the null with significant data suggesting the poisson fit is not good')
+
+# we learn that either model does not fit the data well...
+```
+
+Fit M2 shows the log count of a female horseshoe crab's satellite increases by 0.0459 per unit increase of its carapace width while adjusting for weight, and increases by 0.447 per unit increase of its weight while adjusting for carapace width. Only the coefficient for weight is significant.
 
 ```{r}
-# use chisq test and evaluate the nested models m1 and m3,
-# with df = 171 m1 predictors - 169 m3 predictors = 2
-m1_m3_stat = crab_m1$deviance - crab_m3$deviance
-m1_m3_pval = 1 - pchisq(m1_m3_stat, df = 171-169)
-ifelse(m1_m3_pval > 0.05, 
+# use chisq test and evaluate the nested models m1 and m2,
+# with df = 171 m1 predictors - 170 m2 predictors = 1
+m1_m2_stat = crab_m1$deviance - crab_m2$deviance
+m1_m2_pval = 1 - pchisq(m1_m2_stat, df = 171-170)
+ifelse(m1_m2_pval > 0.05, 
        'Failed to reject the null, since no significant evidence suggest the larger model has a better fit',
        'Reject the null with significant evidence suggesting the larger model fits the data better')
 ```
 
-M3 also has a significantly better fit than the simple model M1. 
+M2 has a significantly better fit and is preferred to M1
 
 c)
-**Estimate overdispersion and fit a Poisson model accounting for it**
-We will move forward with M3 instead of M2, since we deem the model with the interaction term has a better fit. 
+**Estimate overdispersion and interpret under the assumption of overdispersion*
 
 ```{r}
 # obtain dispersion paramater using m3's pearson's chisq residual
-# with df = 173 observations - 4 predictors = 169
-crab_m3_pchisq = sum(residuals(crab_m3, 'pearson')^2)
-phi = crab_m3_pchisq/169; phi
+# with df = 173 observations - 3 predictors = 170
+crab_m2_pchisq = sum(residuals(crab_m2, 'pearson')^2)
+phi = crab_m2_pchisq/170; phi
 # the following code yields a similar phi estimate
-## alt_phi = crab_m3$deviance/crab_m3$df.residual; alt_phi
+## alt_phi = crab_m2$deviance/crab_m2$df.residual; alt_phi
 
-summary(crab_m3, dispersion = phi)
+summary(crab_m2, dispersion = phi)
 ```
 Estimated betas don't change
 
@@ -113,6 +135,15 @@ plot(qnorm((173+1:173+0.5)/(2*173+1.125)),
      ylab='Ordered Abs Pearson Residuals')
 abline(a=0, b=1)
 abline(a=0, b=sqrt(phi), lty=2)
+```
+
+```{r, eval=F, echo=F}
+# if we were to evaluate m2 against m1 under the assumption that there is overdispersion, see the following code for deviance analysis
+# with df = 171 m1 predictors - 170 m2 predictors = 1
+f_stat = m1_m2_stat/((171-170)*phi)
+m1_m2_phi_pval = 1 - pf(f_stat, (171-170), 170); m1_m2_phi_pval
+
+# we see that there's no significant evidence to reject the null and we should go with the smaller model if overdispersion is assumed
 ```
 
 ## Problem 2: 
