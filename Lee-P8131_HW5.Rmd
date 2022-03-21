@@ -47,7 +47,7 @@ ifelse(crab_m1_deviance_pval > 0.05 | crab_m1_pchisq_pval > 0.05,
        'Reject the null with significant data suggesting the poisson fit is not good')
 ```
 
-Fit M1 shows the log count of a female horseshoe crab's satellite increases by 0.164 per unit increase of its carapace width. The coefficient for carapace width is significant at p-value < 2e-16. However, the simple poisson model does not provide a good fit to the data.
+Fit M1 shows the log count of a female horseshoe crab's satellite increases by 0.164 per unit increase of its carapace width. The coefficient for carapace width is significant at p-value < 2e-16, despite the simple poisson model does not provide a good fit to the data.
 
 b) 
 **Fit a Poisson model with 2 predictors, compare it with the previous model and interpret it**
@@ -99,7 +99,7 @@ ifelse(crab_m3_deviance_pval > 0.05 | crab_m3_pchisq_pval > 0.05,
 # we learn that either model does not fit the data well...
 ```
 
-Fit M2 shows the log count of a female horseshoe crab's satellite increases by 0.0459 per unit increase of its carapace width while adjusting for weight, and increases by 0.447 per unit increase of its weight while adjusting for carapace width. Only the coefficient for weight is significant.
+Fit M2 shows the log count of a female horseshoe crab's satellite increases by 0.0459 per unit increase of its carapace width while adjusting for its weight, and it increases by 0.447 per unit increase of its weight, holding carapace width fixed. Only the weight predictor is significant.
 
 ```{r}
 # use chisq test and evaluate the nested models m1 and m2,
@@ -111,10 +111,10 @@ ifelse(m1_m2_pval > 0.05,
        'Reject the null with significant evidence suggesting the larger model fits the data better')
 ```
 
-M2 has a significantly better fit and is preferred to M1
+Per the results of the deviance analysis, M2 has a significantly better fit and is preferred to M1. Likewise, M2 also has a lower AIC than M1, suggesting its better fit.
 
 c)
-**Estimate overdispersion and interpret under the assumption of overdispersion*
+**Estimate overdispersion and interpret under the assumption of overdispersion**
 
 ```{r}
 # obtain dispersion paramater using m3's pearson's chisq residual
@@ -123,10 +123,13 @@ crab_m2_pchisq = sum(residuals(crab_m2, 'pearson')^2)
 phi = crab_m2_pchisq/170; phi
 # the following code yields a similar phi estimate
 ## alt_phi = crab_m2$deviance/crab_m2$df.residual; alt_phi
+```
 
+For count models, overdispersion occurs when $Var[X] > E[X] = \lambda$, and it is shown with $\phi = 3.16 > 1$. 
+
+```{r}
 summary(crab_m2, dispersion = phi)
 ```
-Estimated betas don't change
 
 ```{r}
 res = residuals(crab_m2, type='pearson')
@@ -138,6 +141,8 @@ abline(a=0, b=1)
 abline(a=0, b=sqrt(phi), lty=2)
 ```
 
+The estimated intercept and coefficients for the new fit are equivalent to those of the original fit, as shown in the summaries, and therefore have the same interpretation as for the original fit. The half-normal plot visualizes $\phi > 1$ by displaying the data deviance (linear regression as the dashed line) from the solid $x = y$ reference line in a $\phi^{-1}(\frac{n+i+0.5}{2n+1.125})$ vs $|r_{(i)}|$ plot, where $r$ is Pearson's residuals. 
+
 ```{r, eval=F, echo=F}
 # if we were to evaluate m2 against m1 under the assumption that there is overdispersion, see the following code for deviance analysis
 # with df = 171 m1 predictors - 170 m2 predictors = 1
@@ -147,7 +152,7 @@ m1_m2_phi_pval = 1 - pf(f_stat, (171-170), 170); m1_m2_phi_pval
 # we see that there's no significant evidence to reject the null and we should go with the smaller model if overdispersion is assumed
 ```
 
-## Problem 2: 
+## Problem 2: Fish Parasite Count
 
 ```{r, warning=F, message=F}
 # txt file read in using read_delim() and dropped 'NA' rows and o 'omit' columns
@@ -170,7 +175,7 @@ para_m1 = glm(Intensity ~ Year + Area + Length, family = poisson, data = para_da
 summary(para_m1)
 ```
 
-The fit shows the log count of parasites is 2.64 in year 1999, in area 1 and at length 0. The response increases by 0.670 in 2000, but decreases by 0.218 in 2001 when compared to year 1999 while adjusting for areas and fish body length; the response decreases by 0.212 and 0.117 in area 2 and area 3, respectively, and increases by 1.40 in area 4 when compared to area 1, while adjusting for year and fish body length; the response decreases by 0.0284 per unit increase in length while adjusting for year and area. The intercept and all coefficients are significant at $\alpha = 0.05$.
+The fit shows the log count of parasites is 2.64 in year 1999, in area 1 and at fish length 0. The count increases by $e^{0.670} = 1.95$ times of year 1999 in 2000, but is $e^{-0.218} = 0.804$ times of year 1999 in 2001 while adjusting for area and body length; the count response is $e^{-0.212} = .809$ and $e^{-0.117} = 0.890$ times of area 1 in area 2 and area 3, respectively, and $e^{-0.140} = 4.06$ times area 1 in area 4 while adjusting for year and body length; the count increases by $1-e^{0.0284} = 0.03$ in percentage per unit increase in length while adjusting for year and area. The predictors, including the intercept and all coefficients, are significant at $\alpha = 0.05$.
 
 b) 
 **Goodness of fit and conclusions**
@@ -187,14 +192,14 @@ ifelse(para_m1_deviance_pval > 0.05 | para_m1_pchisq_pval > 0.05,
        'Reject the null with significant data suggesting the poisson fit is not good')
 ```
 
-Despite the coefficients are significant, the model does not provide a good fit to the data. We may speculate the issue be that the data actually falls in a zero-inflated, zero-truncated, or multi-modal poisson distribution. 
+Though the coefficients are significant, it is a poor fitting model for the data. We may speculate the issue to be that the data actually falls in a zero-inflated, zero-truncated, or multi-modal poisson distribution, and question if the overdispersion paramter equals 1. 
 
 c)
 **Fit a zero-inflated poisson model and interpret it**
 
 ```{r}
 # m2 model fit
-para_m2 = zeroinfl(Intensity ~ Year + Area | Length, data = para_data)
+para_m2 = zeroinfl(Intensity ~ Year + Area + Length, data = para_data)
 summary(para_m2)
 ```
 
