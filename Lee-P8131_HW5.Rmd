@@ -8,6 +8,7 @@ output: pdf_document
 Load packages
 ```{r, message=F}
 library(tidyverse)
+library(pscl)
 ```
 
 ## Problem 1: Crab Satellite Count
@@ -187,3 +188,13 @@ ifelse(para_m1_deviance_pval > 0.05 | para_m1_pchisq_pval > 0.05,
 ```
 
 Despite the coefficients are significant, the model does not provide a good fit to the data. We may speculate the issue be that the data actually falls in a zero-inflated, zero-truncated, or multi-modal poisson distribution. 
+
+c)
+**Fit a zero-inflated poisson model and interpret it**
+
+```{r}
+# m2 model fit
+para_m2 = zeroinfl(Intensity ~ Year + Area | Length, data = para_data)
+summary(para_m2)
+```
+
