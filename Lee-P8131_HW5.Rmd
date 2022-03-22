@@ -199,7 +199,8 @@ c)
 
 ```{r}
 # m2 model fit
-para_m2 = zeroinfl(Intensity ~ Year + Area + Length, data = para_data)
+para_m2 = zeroinfl(Intensity ~ Year + Length | Area, data = para_data)
 summary(para_m2)
 ```
 
+Assuming fish in different areas may exhibit a difference in their susceptibility to parasites, and the parasite intensity depends on year and body length, fit M2 is hence created. The model first evaluates whether a fish could be susceptible to parasite infection under a binomial distribution depending on the area, and then models the parasite count under a poison distribution. Contextually speaking, in areas 2, 3, and 4, the respective odds of a fish is susceptible to parasite infection is $e^{0.747} = 2.11$, $e^{0.681} = 1.96$, and $e^{-0.883} = 0.414$ times that of fish in area 1. If a fish is susceptible to infection in the eyes of the model, the parasite count on a fish in year 2000 and 2001 is $e^{0.421} = 1.52$ and $e^{0.099} = 1.10$ times a fish in year 1999, respectively, holding body length fixed. When adjusting for the year, a fish with an increased unit body length has $1-e^{-0.0439} = 0.957$ times the parasite count. 
